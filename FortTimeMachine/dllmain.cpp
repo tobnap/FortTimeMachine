@@ -16,17 +16,21 @@ PVOID(*ProcessEvent)(SDK::UObject*, SDK::UFunction*, PVOID) = nullptr;
 PVOID ProcessEventHook(SDK::UObject* pObject, SDK::UFunction* pFunction, PVOID pParams) {
     if (pObject && pFunction) {
         if (pFunction->GetName().find("ServerAttemptAircraftJump") != std::string::npos) {
+            // Use BugItGo, so that the PlayerPawn isn't messed up.
             SDK::FVector actorLocation = Core::pPlayerController->K2_GetActorLocation();
             Core::pPlayerController->CheatManager->BugItGo(actorLocation.X, actorLocation.Y, actorLocation.Z, 0, 0, 0);
 
+            // Summon a new PlayerPawn.
             std::string sClassName = "PlayerPawn_Athena_C";
             Core::pPlayerController->CheatManager->Summon(SDK::FString(std::wstring(sClassName.begin(), sClassName.end()).c_str()));
 
+            // Find our newly summoned PlayerPawn.
             pPlayerPawn_Athena_C = static_cast<SDK::APlayerPawn_Athena_C*>(Util::FindActor(SDK::APlayerPawn_Athena_C::StaticClass()));
             if (!pPlayerPawn_Athena_C)
                 printf("Finding PlayerPawn_Athena_C has failed, bailing-out immediately!\n");
             else {
-                auto pSkeletalMesh = SDK::UObject::FindObject<SDK::USkeletalMesh>("SkeletalMesh F_SML_Starter_Epic.F_SML_Starter_Epic");
+                // Find our SkeletalMesh in UObject cache.
+                auto pSkeletalMesh = SDK::UObject::FindObject<SDK::USkeletalMesh>(Core::SKELETAL_MESH);
                 if (pSkeletalMesh == nullptr)
                     printf("Finding SkeletalMesh has failed, bailing-out immediately!\n");
                 else {
@@ -40,71 +44,24 @@ PVOID ProcessEventHook(SDK::UObject* pObject, SDK::UFunction* pFunction, PVOID p
         // HACK: This will probably cause a crash, but it's worth a try.
         if (pFunction->GetName().find("StopHoldProgress") != std::string::npos)
             return NULL;
-
-        // Code to print out function calls:
-        /*bool bInvalidate = false;
-
-        if (pFunction->GetName().find("RecieveTick") != std::string::npos)
-            bInvalidate = true;
-        if (pFunction->GetName().find("ReceiveTick") != std::string::npos)
-            bInvalidate = true;
-        if (pFunction->GetName().find("BlueprintUpdateAnimation") != std::string::npos)
-            bInvalidate = true;
-        if (pFunction->GetName().find("BlueprintPostEvaluateAnimation") != std::string::npos)
-            bInvalidate = true;
-        if (pFunction->GetName().find("ExecuteUbergraph") != std::string::npos)
-            bInvalidate = true;
-        if (pFunction->GetName().find("Loop Animation Curve") != std::string::npos)
-            bInvalidate = true;
-        if (pFunction->GetName().find("OnMouseEnter") != std::string::npos)
-            bInvalidate = true;
-        if (pFunction->GetName().find("OnMouseLeave") != std::string::npos)
-            bInvalidate = true;
-        if (pFunction->GetName().find("OnMouseMove") != std::string::npos)
-            bInvalidate = true;
-        if (pFunction->GetName() == "Tick")
-            bInvalidate = true;
-        if (pFunction->GetName() == "GetValue")
-            bInvalidate = true;
-        if (pFunction->GetName() == "OnPaint")
-            bInvalidate = true;
-        if (pFunction->GetName() == "ReadyToEndMatch")
-            bInvalidate = true;
-        if (pFunction->GetName() == "OnUpdateDirectionalLightForTimeOfDay")
-            bInvalidate = true;
-        if (pFunction->GetName() == "ContrailCheck")
-            bInvalidate = true;
-        if (pFunction->GetName() == "ReceiveDrawHUD")
-            bInvalidate = true;
-        if (pFunction->GetName() == "ShouldShowEmptyImage")
-            bInvalidate = true;
-        if (pFunction->GetName() == "GetSubtitleVisibility")
-            bInvalidate = true;
-        if (pFunction->GetName() == "Clown Spinner")
-            bInvalidate = true;
-        if (pFunction->GetName() == "StartTickingIfRendered")
-            bInvalidate = true;
-        if (pFunction->GetName() == "BlueprintModifyCamera")
-            bInvalidate = true;
-        if (pFunction->GetName() == "BlueprintModifyPostProcess")
-            bInvalidate = true;
-
-        if (!bInvalidate)
-            printf("%s %s\n", pObject->GetFullName().c_str(), pFunction->GetFullName().c_str());*/
     }
 
     return ProcessEvent(pObject, pFunction, pParams);
 }
 
-DWORD MiscThread(LPVOID lpParam) {
+DWORD UpdateThread(LPVOID lpParam) {
     while (1) {
-        // Keybind to jump:
-        if (GetKeyState(VK_OEM_PLUS) & 0x8000 && pPlayerPawn_Athena_C) {
-            if (!pPlayerPawn_Athena_C->bIsSkydiving) {
-                if (!pPlayerPawn_Athena_C->IsJumpProvidingForce())
-                    pPlayerPawn_Athena_C->Jump();
-            }
+        // Keybind to jump (only run if not skydiving, might need to fix this more though):
+        if (GetKeyState(VK_SPACE) & 0x8000 && pPlayerPawn_Athena_C && !pPlayerPawn_Athena_C->IsSkydiving()) {
+            if (!pPlayerPawn_Athena_C->IsJumpProvidingForce())
+                pPlayerPawn_Athena_C->Jump();
         }
+
+        // Keybind to sprint (only run if not skydiving):
+        if (GetKeyState(VK_SHIFT) & 0x8000 && pPlayerPawn_Athena_C && !pPlayerPawn_Athena_C->IsSkydiving())
+            pPlayerPawn_Athena_C->CurrentMovementStyle = SDK::EFortMovementStyle::Sprinting;
+        else if (pPlayerPawn_Athena_C)
+            pPlayerPawn_Athena_C->CurrentMovementStyle = SDK::EFortMovementStyle::Running;
 
         // Keybind to equip weapon:
         if (GetKeyState(VK_END) & 0x8000 && pPlayerPawn_Athena_C) {
@@ -118,6 +75,7 @@ DWORD MiscThread(LPVOID lpParam) {
             }
         }
 
+        // Update thread only runs at 60hz, so we don't rape CPUs.
         Sleep(1000 / 60);
     }
 
@@ -128,7 +86,7 @@ DWORD WINAPI Main(LPVOID lpParam) {
     Util::InitConsole();
 
     printf("Aurora: Time Machine by Cyuubi, with help from others.\n");
-    printf("Credits: Taj, Samicc, Kanner and Pivot.\n\n");
+    printf("Credits: Cendence, Irma, Kanner, Pivot, Samicc and Taj.\n\n");
 
     printf("Thank you all for helping, this wouldn't have been possible without you!\n");
 
@@ -144,22 +102,25 @@ DWORD WINAPI Main(LPVOID lpParam) {
     MH_CreateHook(static_cast<LPVOID>(pProcessEventAddress), ProcessEventHook, reinterpret_cast<LPVOID*>(&ProcessEvent));
     MH_EnableHook(static_cast<LPVOID>(pProcessEventAddress));
 
+    // Find our PlayerPawn.
     pPlayerPawn_Athena_C = static_cast<SDK::APlayerPawn_Athena_C*>(Util::FindActor(SDK::APlayerPawn_Athena_C::StaticClass()));
     if (!pPlayerPawn_Athena_C)
         printf("Finding PlayerPawn_Athena_C has failed, bailing-out immediately!\n");
     else {
-        auto pSkeletalMesh = SDK::UObject::FindObject<SDK::USkeletalMesh>("SkeletalMesh F_SML_Starter_Epic.F_SML_Starter_Epic");
+        // Find our SkeletalMesh in UObject cache.
+        auto pSkeletalMesh = SDK::UObject::FindObject<SDK::USkeletalMesh>(Core::SKELETAL_MESH);
         if (!pSkeletalMesh)
             printf("Finding SkeletalMesh has failed, bailing-out immediately!\n");
         else {
             pPlayerPawn_Athena_C->Mesh->SetSkeletalMesh(pSkeletalMesh, true);
 
-            Util::Possess(pPlayerPawn_Athena_C);
+            Util::Possess(pPlayerPawn_Athena_C); // Possess our PlayerPawn.
 
-            CreateThread(0, 0, MiscThread, 0, 0, 0);
+            CreateThread(0, 0, UpdateThread, 0, 0, 0); // Create thread to handle input, etc...
 
-            Sleep(2000);
+            Sleep(2000); // Wait for everything to be ready.
 
+            // Tell the client that we are ready to start the match, this allows the loading screen to drop.
             static_cast<SDK::AAthena_PlayerController_C*>(Core::pPlayerController)->ServerReadyToStartMatch();
 
             auto pAuthorityGameMode = static_cast<SDK::AFortGameModeAthena*>((*Core::pWorld)->AuthorityGameMode);
