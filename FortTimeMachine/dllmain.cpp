@@ -101,7 +101,7 @@ DWORD WINAPI Main(LPVOID lpParam) {
 
     MH_CreateHook(static_cast<LPVOID>(pProcessEventAddress), ProcessEventHook, reinterpret_cast<LPVOID*>(&ProcessEvent));
     MH_EnableHook(static_cast<LPVOID>(pProcessEventAddress));
-
+    
     // Find our PlayerPawn.
     pPlayerPawn_Athena_C = static_cast<SDK::APlayerPawn_Athena_C*>(Util::FindActor(SDK::APlayerPawn_Athena_C::StaticClass()));
     if (!pPlayerPawn_Athena_C)
@@ -112,8 +112,8 @@ DWORD WINAPI Main(LPVOID lpParam) {
         if (!pSkeletalMesh)
             printf("Finding SkeletalMesh has failed, bailing-out immediately!\n");
         else {
-            pPlayerPawn_Athena_C->Mesh->SetSkeletalMesh(pSkeletalMesh, true);
-
+            pPlayerPawn_Athena_C->Mesh->SetSkeletalMesh(pSkeletalMesh, true);\
+            
             Util::Possess(pPlayerPawn_Athena_C); // Possess our PlayerPawn.
 
             CreateThread(0, 0, UpdateThread, 0, 0, 0); // Create thread to handle input, etc...
