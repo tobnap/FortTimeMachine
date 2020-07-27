@@ -9,5 +9,8 @@ It's like a time machine, but for Fortnite. This code is currently a dumpster fi
 
 Please note: Characters do not work, we've tried just about everything to get them working. If you can get it working, please let us know!
 
+# License
+Everything except the SDK (which is public domain) is licensed under GPLv3, therefore. You must distribute the source code to binaries, whatsoever.
+
 # Libraries
 FortTimeMachine uses [MinHook](https://github.com/TsudaKageyu/minhook), which is licensed. You may read MinHook's license, [here](https://github.com/TsudaKageyu/minhook/blob/master/LICENSE.txt).
