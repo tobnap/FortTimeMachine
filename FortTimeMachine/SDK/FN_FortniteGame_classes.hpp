@@ -13353,6 +13353,7 @@ public:
 	class ABuildingSMActor*                            PendingEnterModeActor;                                    // 0x22E8(0x0008) (ZeroConstructor, Transient, IsPlainOldData)
 	int                                                RandomCharacterIndex;                                     // 0x22F0(0x0004) (ZeroConstructor, Transient, IsPlainOldData)
 	unsigned char                                      UnknownData39[0xC];                                       // 0x22F4(0x000C) MISSED OFFSET
+	class UFortCheatManager*						   FortCheatManager;
 
 	static UClass* StaticClass()
 	{
