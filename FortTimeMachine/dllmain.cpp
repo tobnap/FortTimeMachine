@@ -2,6 +2,12 @@
 
 #include <Windows.h>
 #include <stdio.h>
+#include <iostream>
+#include <vector>
+#include <sstream>
+
+#include <winsock.h>
+#pragma comment (lib, "ws2_32.lib")
 
 #include <MinHook.h>
 #pragma comment(lib, "minhook.lib")
@@ -9,7 +15,10 @@
 #include "core.h"
 #include "util.h"
 
+#define BUFFER_SIZE 512
+
 SDK::APlayerPawn_Athena_C* pPlayerPawn_Athena_C;
+SDK::APlayerPawn_Athena_C* pPlayerPawn_Athena_C2;
 
 PVOID(*ProcessEvent)(SDK::UObject*, SDK::UFunction*, PVOID) = nullptr;
 
@@ -63,6 +72,7 @@ DWORD UpdateThread(LPVOID lpParam) {
         else if (pPlayerPawn_Athena_C)
             pPlayerPawn_Athena_C->CurrentMovementStyle = SDK::EFortMovementStyle::Running;
 
+        /*
         // Keybind to equip weapon:
         if (GetKeyState(VK_END) & 0x8000 && pPlayerPawn_Athena_C) {
             auto pFortWeapon = static_cast<SDK::AFortWeapon*>(Util::FindActor(SDK::AFortWeapon::StaticClass()));
@@ -74,10 +84,145 @@ DWORD UpdateThread(LPVOID lpParam) {
                 pPlayerPawn_Athena_C->ClientInternalEquipWeapon(pFortWeapon);
             }
         }
+        */
+
+        /*
+        if (GetKeyState(VK_INSERT) & 0x8000) {
+            std::string sClassName = "PlayerPawn_Athena_C";
+            Core::pPlayerController->CheatManager->Summon(SDK::FString(std::wstring(sClassName.begin(), sClassName.end()).c_str()));
+        }
+        */
+
+        if (GetKeyState(VK_HOME) & 0x8000) {
+            pPlayerPawn_Athena_C2 = static_cast<SDK::APlayerPawn_Athena_C*>(Util::FindActor(SDK::APlayerPawn_Athena_C::StaticClass(), 1));
+            if (!pPlayerPawn_Athena_C2)
+                printf("Finding PlayerPawn_Athena_C has failed, bailing-out immediately!\n");
+            else {
+                // Find our SkeletalMesh in UObject cache.
+                auto pSkeletalMesh = SDK::UObject::FindObject<SDK::USkeletalMesh>(Core::SKELETAL_MESH);
+                if (pSkeletalMesh == nullptr)
+                    printf("Finding SkeletalMesh has failed, bailing-out immediately!\n");
+                else {
+                    pPlayerPawn_Athena_C2->Mesh->SetSkeletalMesh(pSkeletalMesh, true);
+                }
+            }
+        }
 
         // Update thread only runs at 60hz, so we don't rape CPUs.
         Sleep(1000 / 60);
     }
+
+    return NULL;
+}
+
+DWORD ServerThread(LPVOID lpParam) {
+    Core::pLevel->WorldSettings->bEnableWorldBoundsChecks = false;
+
+    WSADATA wsaData;
+    SOCKET ConnectSocket = INVALID_SOCKET;
+    int iResult;
+    int recvbuflen = BUFFER_SIZE;
+
+    char sendbuf[BUFFER_SIZE] = "";
+    char recvbuf[BUFFER_SIZE] = "";
+
+    const char* ipaddress = "25.18.6.19";
+    int port = 8080;
+
+    struct sockaddr_in serveraddr;
+    WSAStartup(MAKEWORD(2, 0), &wsaData);
+    iResult = WSAStartup(MAKEWORD(2, 0), &wsaData);
+    if (iResult != 0) {
+        printf("WSAStartup failed with error: %d\n", iResult);
+        return 1;
+    }
+
+    ConnectSocket = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP);
+    if (ConnectSocket == INVALID_SOCKET) {
+        printf("socket failed with error: %ld\n", WSAGetLastError());
+        WSACleanup();
+        return 1;
+    }
+
+    memset(&serveraddr, 0, sizeof(serveraddr));
+    serveraddr.sin_family = AF_INET;
+    serveraddr.sin_addr.s_addr = inet_addr(ipaddress);
+    serveraddr.sin_port = htons((unsigned short)port);
+
+    // Connect to server.
+    iResult = connect(ConnectSocket, (struct sockaddr*)&serveraddr, sizeof(serveraddr));
+    if (iResult == SOCKET_ERROR) {
+        closesocket(ConnectSocket);
+        ConnectSocket = INVALID_SOCKET;
+        return 1;
+    }
+
+    printf("Initialized server connection\n");
+
+    // Get player number
+    std::string getplayermsg = "Get Player Number";
+    memcpy(sendbuf, getplayermsg.c_str(), getplayermsg.size());
+
+    send(ConnectSocket, sendbuf, getplayermsg.size(), 0);
+
+    recv(ConnectSocket, recvbuf, recvbuflen, 0);
+    std::string PlayerNum(recvbuf);
+
+    while (1) {
+        // Get player's location and rotation
+        SDK::FVector localLocation = pPlayerPawn_Athena_C->K2_GetActorLocation();
+        SDK::FRotator localRotation = pPlayerPawn_Athena_C->K2_GetActorRotation();
+
+        // Format location and rotation into string to send it to the server
+        std::string localLocationString = PlayerNum + "," + std::to_string(localLocation.X) + "," + std::to_string(localLocation.Y) + "," + std::to_string(localLocation.Z) + "," + std::to_string(localRotation.Pitch) + "," + std::to_string(localRotation.Yaw) + "," + std::to_string(localRotation.Roll);
+
+        // Convert std string to char
+        memcpy(sendbuf, localLocationString.c_str(), localLocationString.size());
+
+        // Send buffer
+        send(ConnectSocket, sendbuf, localLocationString.size(), 0);
+
+        // Recieve buffer
+        recv(ConnectSocket, recvbuf, recvbuflen, 0);
+
+        // Convert char into std string
+        std::string recvstr(recvbuf);
+        std::cout << recvstr << std::endl;
+
+        if (recvstr.find("Player") != std::string::npos) {
+            std::vector<std::string> vect;
+            std::stringstream ss(recvstr);
+
+            while (ss.good()) {
+                std::string substr;
+                getline(ss, substr, ',');
+                vect.push_back(substr);
+            }
+
+            SDK::FVector location;
+            location.X = std::stof(vect[1]);
+            location.Y = std::stof(vect[2]);
+            location.Z = std::stof(vect[3]);
+            
+            SDK::FRotator rotation;
+            rotation.Pitch = std::stof(vect[4]);
+            rotation.Yaw = std::stof(vect[5]);
+            rotation.Roll = std::stof(vect[6]);
+
+            if (pPlayerPawn_Athena_C2) {
+                //pPlayerPawn_Athena_C2->K2_TeleportTo(location, rotation);
+                pPlayerPawn_Athena_C2->K2_SetActorLocationAndRotation(location, rotation, false, false, new SDK::FHitResult());
+                //pPlayerPawn_Athena_C2->Mesh->K2_SetWorldLocationAndRotation(location, rotation, false, true, new SDK::FHitResult());
+            }
+        }
+
+        // Update thread only runs at 60hz, so we don't rape CPUs.
+        Sleep(1000 / 60);
+    }
+
+    // Close socket
+    closesocket(ConnectSocket);
+    WSACleanup();
 
     return NULL;
 }
@@ -116,7 +261,8 @@ DWORD WINAPI Main(LPVOID lpParam) {
 
             Util::Possess(pPlayerPawn_Athena_C); // Possess our PlayerPawn.
 
-            CreateThread(0, 0, UpdateThread, 0, 0, 0); // Create thread to handle input, etc...
+            CreateThread(0, 0, UpdateThread, 0, 0, 0); // Create thread to handle, etc...
+            CreateThread(0, 0, ServerThread, 0, 0, 0); // Create thread to handle server updates
 
             Sleep(2000); // Wait for everything to be ready.
 
