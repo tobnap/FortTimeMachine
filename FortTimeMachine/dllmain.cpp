@@ -116,8 +116,9 @@ DWORD UpdateThread(LPVOID lpParam) {
 }
 
 DWORD ServerThread(LPVOID lpParam) {
+    // Disable world bounds checks so it doesnt kill other playerpawns
     Core::pLevel->WorldSettings->bEnableWorldBoundsChecks = false;
-
+    
     WSADATA wsaData;
     SOCKET ConnectSocket = INVALID_SOCKET;
     int iResult;
@@ -168,6 +169,8 @@ DWORD ServerThread(LPVOID lpParam) {
     recv(ConnectSocket, recvbuf, recvbuflen, 0);
     std::string PlayerNum(recvbuf);
 
+    std::vector<SDK::APlayerPawn_Athena_C*> pPlayerPawn_Athena_C_Index;
+
     while (1) {
         // Get player's location and rotation
         SDK::FVector localLocation = pPlayerPawn_Athena_C->K2_GetActorLocation();
@@ -187,7 +190,7 @@ DWORD ServerThread(LPVOID lpParam) {
 
         // Convert char into std string
         std::string recvstr(recvbuf);
-        std::cout << recvstr << std::endl;
+        //std::cout << recvstr << std::endl;
 
         if (recvstr.find("Player") != std::string::npos) {
             std::vector<std::string> vect;
@@ -209,9 +212,30 @@ DWORD ServerThread(LPVOID lpParam) {
             rotation.Yaw = std::stof(vect[5]);
             rotation.Roll = std::stof(vect[6]);
 
-            if (pPlayerPawn_Athena_C2) {
+            vect[0].erase(0, 6);
+            int PlayerNumber = atoi(vect[0].c_str());
+            //std::cout << PlayerNumber << std::endl;
+
+            if (pPlayerPawn_Athena_C_Index.size() != PlayerNumber) {
+                SDK::APlayerPawn_Athena_C* pPlayerPawn_Athena_C_Temp = static_cast<SDK::APlayerPawn_Athena_C*>(Util::FindActor(SDK::APlayerPawn_Athena_C::StaticClass(), PlayerNumber));
+                if (!pPlayerPawn_Athena_C_Temp)
+                    printf("Finding PlayerPawn_Athena_C has failed, bailing-out immediately!\n");
+                else {
+                    // Find our SkeletalMesh in UObject cache.
+                    auto pSkeletalMesh = SDK::UObject::FindObject<SDK::USkeletalMesh>(Core::SKELETAL_MESH);
+                    if (pSkeletalMesh == nullptr)
+                        printf("Finding SkeletalMesh has failed, bailing-out immediately!\n");
+                    else {
+                        pPlayerPawn_Athena_C_Temp->Mesh->SetSkeletalMesh(pSkeletalMesh, true);
+                    }
+                }
+
+                pPlayerPawn_Athena_C_Index.push_back(pPlayerPawn_Athena_C_Temp);
+            }
+            
+            if (pPlayerPawn_Athena_C_Index[PlayerNumber]) {
                 //pPlayerPawn_Athena_C2->K2_TeleportTo(location, rotation);
-                pPlayerPawn_Athena_C2->K2_SetActorLocationAndRotation(location, rotation, false, false, new SDK::FHitResult());
+                pPlayerPawn_Athena_C_Index[PlayerNumber]->K2_SetActorLocationAndRotation(location, rotation, false, false, new SDK::FHitResult());
                 //pPlayerPawn_Athena_C2->Mesh->K2_SetWorldLocationAndRotation(location, rotation, false, true, new SDK::FHitResult());
             }
         }
@@ -261,7 +285,7 @@ DWORD WINAPI Main(LPVOID lpParam) {
 
             Util::Possess(pPlayerPawn_Athena_C); // Possess our PlayerPawn.
 
-            CreateThread(0, 0, UpdateThread, 0, 0, 0); // Create thread to handle, etc...
+            CreateThread(0, 0, UpdateThread, 0, 0, 0); // Create thread to handle input, etc...
             CreateThread(0, 0, ServerThread, 0, 0, 0); // Create thread to handle server updates
 
             Sleep(2000); // Wait for everything to be ready.

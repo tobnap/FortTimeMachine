@@ -7,20 +7,38 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "FortTimeMachine", "FortTime
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "websocket-sharp", "websocket-sharp\websocket-sharp\websocket-sharp.csproj", "{CE7C6F7D-E907-4FC4-99F9-E4D2D6B8B228}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "FortTimeMachine-Server", "FortTimeMachine-Server\FortTimeMachine-Server.vcxproj", "{AA9D3A1A-F49C-42F4-B8B8-8E245163A791}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
+		Debug|x86 = Debug|x86
 		Release|x64 = Release|x64
+		Release|x86 = Release|x86
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
 		{681F9315-7563-43DC-A2AB-0C4122002E2F}.Debug|x64.ActiveCfg = Debug|x64
 		{681F9315-7563-43DC-A2AB-0C4122002E2F}.Debug|x64.Build.0 = Debug|x64
+		{681F9315-7563-43DC-A2AB-0C4122002E2F}.Debug|x86.ActiveCfg = Debug|x64
 		{681F9315-7563-43DC-A2AB-0C4122002E2F}.Release|x64.ActiveCfg = Release|x64
 		{681F9315-7563-43DC-A2AB-0C4122002E2F}.Release|x64.Build.0 = Release|x64
+		{681F9315-7563-43DC-A2AB-0C4122002E2F}.Release|x86.ActiveCfg = Release|x64
 		{CE7C6F7D-E907-4FC4-99F9-E4D2D6B8B228}.Debug|x64.ActiveCfg = Debug|Any CPU
 		{CE7C6F7D-E907-4FC4-99F9-E4D2D6B8B228}.Debug|x64.Build.0 = Debug|Any CPU
+		{CE7C6F7D-E907-4FC4-99F9-E4D2D6B8B228}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{CE7C6F7D-E907-4FC4-99F9-E4D2D6B8B228}.Debug|x86.Build.0 = Debug|Any CPU
 		{CE7C6F7D-E907-4FC4-99F9-E4D2D6B8B228}.Release|x64.ActiveCfg = Release|Any CPU
 		{CE7C6F7D-E907-4FC4-99F9-E4D2D6B8B228}.Release|x64.Build.0 = Release|Any CPU
+		{CE7C6F7D-E907-4FC4-99F9-E4D2D6B8B228}.Release|x86.ActiveCfg = Release|Any CPU
+		{CE7C6F7D-E907-4FC4-99F9-E4D2D6B8B228}.Release|x86.Build.0 = Release|Any CPU
+		{AA9D3A1A-F49C-42F4-B8B8-8E245163A791}.Debug|x64.ActiveCfg = Debug|x64
+		{AA9D3A1A-F49C-42F4-B8B8-8E245163A791}.Debug|x64.Build.0 = Debug|x64
+		{AA9D3A1A-F49C-42F4-B8B8-8E245163A791}.Debug|x86.ActiveCfg = Debug|Win32
+		{AA9D3A1A-F49C-42F4-B8B8-8E245163A791}.Debug|x86.Build.0 = Debug|Win32
+		{AA9D3A1A-F49C-42F4-B8B8-8E245163A791}.Release|x64.ActiveCfg = Release|x64
+		{AA9D3A1A-F49C-42F4-B8B8-8E245163A791}.Release|x64.Build.0 = Release|x64
+		{AA9D3A1A-F49C-42F4-B8B8-8E245163A791}.Release|x86.ActiveCfg = Release|Win32
+		{AA9D3A1A-F49C-42F4-B8B8-8E245163A791}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
